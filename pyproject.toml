@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "photo-reviver"
+version = "0.1.0"
+description = "A simple, well-structured old photo restoration pipeline scaffold."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26,<3.0",
+    "opencv-python>=4.10,<5.0",
+]
+
+[project.scripts]
+photo-reviver = "photo_reviver.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

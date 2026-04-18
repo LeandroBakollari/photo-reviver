@@ -1,0 +1,41 @@
+{
+  "paths": {
+    "output_root": "artifacts/runs"
+  },
+  "analysis": {
+    "min_width": 64,
+    "min_height": 64,
+    "low_contrast_std_threshold": 38.0,
+    "low_contrast_dynamic_range_threshold": 90,
+    "small_image_longest_side_threshold": 1200,
+    "scratch_ratio_thresholds": {
+      "medium": 0.015,
+      "high": 0.04
+    }
+  },
+  "preprocess": {
+    "denoise_strength": 7,
+    "use_clahe": true,
+    "resize_longest_side": 1600,
+    "normalize_intensity": false
+  },
+  "restoration": {
+    "backend": "passthrough",
+    "external_command": [
+      "python",
+      "external/microsoft-repo/run.py",
+      "--input",
+      "{input_path}",
+      "--output",
+      "{output_path}",
+      "--mode",
+      "{mode}"
+    ]
+  },
+  "postprocess": {
+    "apply_enhancement": true,
+    "apply_sharpening": true,
+    "simple_upscale_factor": 1.0,
+    "attempt_colorization": false
+  }
+}
