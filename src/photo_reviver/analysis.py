@@ -5,7 +5,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from photo_reviver.io_utils import save_image, save_json
+from photo_reviver.io_utils import ensure_color, save_image, save_json
 from photo_reviver.types import ImageAnalysis, ImageValidation
 
 
@@ -52,7 +52,8 @@ def estimate_scratch_severity(
     gray_image: np.ndarray,
     medium_threshold: float,
     high_threshold: float,
-) -> tuple[float, str, np.ndarray]:
+) -> tuple[float, str, np.ndarray, str]:
+    # Keep this stage simple and readable: a blackhat highlights thin dark damage.
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
     blackhat = cv2.morphologyEx(gray_image, cv2.MORPH_BLACKHAT, kernel)
     _, scratch_mask = cv2.threshold(blackhat, 20, 255, cv2.THRESH_BINARY)
@@ -66,7 +67,14 @@ def estimate_scratch_severity(
     else:
         severity = "low"
 
-    return scratch_ratio, severity, scratch_mask
+    return scratch_ratio, severity, scratch_mask, "blackhat threshold heuristic"
+
+
+def create_scratch_overlay(image: np.ndarray, scratch_mask: np.ndarray) -> np.ndarray:
+    overlay = ensure_color(image).copy()
+    highlight = overlay.copy()
+    highlight[scratch_mask > 0] = (40, 40, 220)
+    return cv2.addWeighted(overlay, 0.72, highlight, 0.28, 0.0)
 
 
 def detect_faces(gray_image: np.ndarray) -> tuple[bool, int, str]:
@@ -110,7 +118,10 @@ def analyze_image(
     validation: ImageValidation,
     analysis_config: dict,
     stage_dir: Path,
+    restoration_config: dict | None = None,
 ) -> ImageAnalysis:
+    del restoration_config
+
     gray_image = to_grayscale(image)
     grayscale_path = save_image(stage_dir / "grayscale.png", gray_image)
 
@@ -125,7 +136,7 @@ def analyze_image(
         ),
     )
 
-    scratch_ratio, scratch_severity, scratch_mask = estimate_scratch_severity(
+    scratch_ratio, scratch_severity, scratch_mask, scratch_detection_method = estimate_scratch_severity(
         gray_image,
         medium_threshold=float(
             analysis_config["scratch_ratio_thresholds"]["medium"]
@@ -133,6 +144,10 @@ def analyze_image(
         high_threshold=float(analysis_config["scratch_ratio_thresholds"]["high"]),
     )
     scratch_mask_path = save_image(stage_dir / "scratch_mask.png", scratch_mask)
+    scratch_overlay_path = save_image(
+        stage_dir / "scratch_overlay.png",
+        create_scratch_overlay(image, scratch_mask),
+    )
 
     face_detected, face_count, face_method = detect_faces(gray_image)
     needs_hr = decide_high_resolution_path(
@@ -157,12 +172,14 @@ def analyze_image(
         grayscale_path=grayscale_path.resolve(),
         histogram_path=histogram_path.resolve(),
         scratch_mask_path=scratch_mask_path.resolve(),
+        scratch_overlay_path=scratch_overlay_path.resolve(),
         brightness_mean=float(np.mean(gray_image)),
         brightness_std=brightness_std,
         dynamic_range=dynamic_range,
         low_contrast=low_contrast,
         scratch_ratio=scratch_ratio,
         scratch_severity=scratch_severity,
+        scratch_detection_method=scratch_detection_method,
         face_detected=face_detected,
         face_count=face_count,
         face_detection_method=face_method,

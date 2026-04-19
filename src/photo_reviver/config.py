@@ -51,10 +51,24 @@ DEFAULT_CONFIG: dict[str, Any] = {
         ],
     },
     "postprocess": {
-        "apply_enhancement": True,
-        "apply_sharpening": True,
+        "apply_enhancement": False,
+        "enhancement_strength": 0.12,
+        "enhancement_clip_limit": 1.2,
+        "apply_sharpening": False,
+        "sharpening_strength": 0.08,
+        "sharpen_sigma": 1.0,
         "simple_upscale_factor": 1.0,
         "attempt_colorization": False,
+        "colorization": {
+            "enabled": False,
+            "repo_root": "external/deoldify",
+            "weights_name": "ColorizeArtistic_gen",
+            "artistic": True,
+            "render_factor": 25,
+            "post_process": True,
+            "watermarked": False,
+            "device": "cpu",
+        },
     },
 }
 

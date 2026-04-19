@@ -87,7 +87,7 @@ def compute_reference_metrics(
 
 def evaluate_result(
     original_image: np.ndarray,
-    preprocessed_image: np.ndarray,
+    restored_image: np.ndarray,
     final_image: np.ndarray,
     stage_dir: Path,
     reference_path: Path | None = None,
@@ -95,8 +95,8 @@ def evaluate_result(
     stage_images = [
         ("Original", original_image),
         ("Grayscale", to_grayscale(original_image)),
-        ("Preprocessed", preprocessed_image),
-        ("Final Output", final_image),
+        ("After Restoration Model", restored_image),
+        ("After Final Touches", final_image),
     ]
 
     comparison = create_comparison_grid(stage_images)

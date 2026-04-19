@@ -32,12 +32,14 @@ class ImageAnalysis:
     grayscale_path: Path
     histogram_path: Path
     scratch_mask_path: Path
+    scratch_overlay_path: Path
     brightness_mean: float
     brightness_std: float
     dynamic_range: int
     low_contrast: bool
     scratch_ratio: float
     scratch_severity: str
+    scratch_detection_method: str
     face_detected: bool
     face_count: int
     face_detection_method: str
@@ -75,6 +77,8 @@ class PostprocessResult:
     applied_steps: list[str]
     skipped_steps: list[str]
     final_size: tuple[int, int]
+    colorized_path: Path | None = None
+    notes: list[str] = field(default_factory=list)
 
 
 @dataclass

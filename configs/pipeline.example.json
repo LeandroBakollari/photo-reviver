@@ -40,9 +40,23 @@
     ]
   },
   "postprocess": {
-    "apply_enhancement": true,
-    "apply_sharpening": true,
+    "apply_enhancement": false,
+    "enhancement_strength": 0.12,
+    "enhancement_clip_limit": 1.2,
+    "apply_sharpening": false,
+    "sharpening_strength": 0.08,
+    "sharpen_sigma": 1.0,
     "simple_upscale_factor": 1.0,
-    "attempt_colorization": false
+    "attempt_colorization": false,
+    "colorization": {
+      "enabled": false,
+      "repo_root": "external/deoldify",
+      "weights_name": "ColorizeArtistic_gen",
+      "artistic": true,
+      "render_factor": 25,
+      "post_process": true,
+      "watermarked": false,
+      "device": "cpu"
+    }
   }
 }

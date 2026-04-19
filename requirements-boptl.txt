@@ -12,3 +12,7 @@ scipy
 opencv-python
 einops
 matplotlib
+fastprogress
+ffmpeg-python
+yt-dlp
+IPython

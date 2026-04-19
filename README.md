@@ -1,64 +1,75 @@
 # Photo Reviver
 
-`photo-reviver` is a clean Python project scaffold for an old-photo restoration pipeline.
+`photo-reviver` is a small Python project for restoring old photos with a clear staged pipeline.
 
-The goal of this version is not to solve restoration with a model yet. Instead, it gives you the full project structure, the non-model parts of the pipeline, a simple CLI, saved stage outputs, and a clear place where a future Microsoft restoration repo can be connected.
+This version is organized around three ideas:
 
-## What This Project Already Does
+- the Microsoft `Bringing-Old-Photos-Back-to-Life` repo handles the main restoration step,
+- the app shows every stage so you can inspect what changed,
+- final touches happen **after** the model output, with sliders for enhancement and sharpening, plus a button that runs **DeOldify** for colorization.
 
-This code already covers the parts that do **not** require a restoration model:
+## What The Project Does
 
-1. Save the original image into a run folder.
-2. Read and validate the image.
-3. Convert it to grayscale for analysis.
-4. Check histogram / contrast information.
-5. Estimate scratch severity with simple image-processing heuristics.
-6. Detect whether a face is present with a lightweight OpenCV classical detector.
-7. Decide whether a high-resolution path may be useful.
-8. Preprocess the image with mild denoising and contrast correction.
-9. Choose a restoration mode: `normal`, `scratch`, or `scratch+hr`.
-10. Run a placeholder restoration stage.
-11. Postprocess the output with optional enhancement, sharpening, and simple upscaling.
-12. Create a before/after stage comparison image.
-13. Compute simple metrics if you provide a clean reference image.
-14. Save JSON reports for every stage.
+The pipeline is split into the same stages you described:
 
-## What This Project Does Not Do Yet
+1. Save and validate the uploaded image.
+2. Analyze the image:
+   - grayscale conversion
+   - histogram check
+   - low-contrast detection
+   - scratch estimation
+   - face detection
+   - HR-path suggestion
+3. Preprocess the image.
+4. Choose restoration mode:
+   - `normal`
+   - `scratch`
+   - `scratch+hr`
+5. Run the restoration engine.
+6. Apply final touches on top of the model output:
+   - enhancement
+   - sharpening
+   - optional DeOldify colorization
+7. Save the final image and comparison outputs.
 
-The actual learned restoration model is **not** included yet.
+## Current App Logic
 
-Right now the default restoration backend is `passthrough`, which means:
+The app now works like this:
 
-- the pipeline runs end to end,
-- the restoration stage is structurally present,
-- the preprocessed image is simply passed forward as a placeholder,
-- you can later replace that stage with a Microsoft repo or another model.
+1. Upload a damaged image.
+2. Press `Fix Photo`.
+3. The restoration model runs first.
+4. Open the `Final Touches` tab.
+5. Adjust:
+   - `Enhancement strength`
+   - `Sharpening strength`
+6. Press:
+   - `Apply Final Touches` to update the restored image
+   - `Run DeOldify Colorization` to colorize the current final-touch version
 
-There is now also an optional real backend for the Microsoft repo:
-
-- backend name: `boptl`
-- expected repo path: `external/bringing-old-photos-back-to-life`
-- expected pretrained assets:
-  - `Face_Detection/shape_predictor_68_face_landmarks.dat`
-  - `Face_Enhancement/checkpoints/`
-  - `Global/checkpoints/`
+This means enhancement, sharpening, and colorization all happen **after** the model output, which matches the workflow you wanted.
 
 ## Project Structure
 
 ```text
 photo-reviver/
+|-- app.py
 |-- artifacts/
 |   `-- runs/
 |-- configs/
 |   |-- pipeline.boptl.json
 |   `-- pipeline.example.json
 |-- external/
-|   `-- bringing-old-photos-back-to-life/
+|   |-- bringing-old-photos-back-to-life/
+|   `-- deoldify/
+|-- scripts/
 |-- src/
 |   `-- photo_reviver/
 |       |-- __init__.py
 |       |-- analysis.py
+|       |-- app_utils.py
 |       |-- cli.py
+|       |-- colorization.py
 |       |-- config.py
 |       |-- decision.py
 |       |-- evaluate.py
@@ -67,188 +78,63 @@ photo-reviver/
 |       |-- postprocess.py
 |       |-- preprocess.py
 |       |-- restoration.py
-|       `-- types.py
+|       |-- types.py
+|       `-- web_app.py
 |-- tests/
-|   |-- test_config.py
-|   |-- test_decision.py
-|   |-- test_evaluate.py
-|   `-- test_restoration.py
-|-- .gitignore
 |-- pyproject.toml
 |-- requirements-boptl.txt
 |-- requirements.txt
-|-- scripts/
-|   `-- setup_boptl_assets.py
 `-- README.md
 ```
 
-## How The 7-Step Workflow Maps To The Code
+## Important Folders
 
-### Step 1: User uploads image
+### Microsoft restoration repo
 
-Handled by:
-
-- `photo_reviver.cli`
-- `photo_reviver.pipeline`
-- `photo_reviver.io_utils`
-
-What happens:
-
-- the input file path is received from the CLI,
-- the file is copied into a timestamped run folder,
-- the image is read,
-- the format and dimensions are validated.
-
-### Step 2: Analyze image
-
-Handled by:
-
-- `photo_reviver.analysis`
-
-What happens:
-
-- grayscale conversion,
-- histogram calculation,
-- histogram visualization saved as an image,
-- low contrast detection,
-- scratch severity estimation,
-- face detection,
-- decision helper for whether an HR path may be useful.
-
-Important note:
-
-- face detection uses OpenCV's built-in Haar cascade, which is a classical detector and much lighter than a deep restoration model.
-
-### Step 3: Preprocess image
-
-Handled by:
-
-- `photo_reviver.preprocess`
-
-What happens:
-
-- mild denoise,
-- CLAHE-based contrast correction,
-- optional normalization,
-- optional resizing,
-- preprocessed output saved to disk.
-
-### Step 4: Choose restoration mode
-
-Handled by:
-
-- `photo_reviver.decision`
-
-What happens:
-
-- if scratches are light, choose `normal`,
-- if scratches are visible, choose `scratch`,
-- if scratches are strong and the image also looks small, choose `scratch+hr`.
-
-### Step 5: Run restoration engine
-
-Handled by:
-
-- `photo_reviver.restoration`
-
-What happens now:
-
-- default backend: `passthrough`
-- this keeps the project runnable without a model
-- it creates the correct stage output and report
-
-What also works now:
-
-- you can switch to the `boptl` backend
-- the project will call the Microsoft `run.py` for you
-- the config for that is in `configs/pipeline.boptl.json`
-
-Optional advanced path:
-
-- you can still use `external_command`
-- that is useful if you later want to integrate a different external model
-
-This means the project is already prepared for:
-
-- `run.py` processing the image,
-- model pipeline writing to an output path,
-- optional model logs and intermediate files.
-
-### Step 6: Postprocess output
-
-Handled by:
-
-- `photo_reviver.postprocess`
-
-What happens:
-
-- optional light enhancement,
-- optional sharpening with unsharp masking,
-- optional simple upscale with Lanczos,
-- colorization is left as a future model-based step and is intentionally skipped.
-
-### Step 7: Evaluate and present result
-
-Handled by:
-
-- `photo_reviver.evaluate`
-
-What happens:
-
-- a stage comparison image is generated,
-- the project saves a visual summary,
-- if you pass a clean reference image, simple metrics are computed.
-
-Metrics included:
-
-- MAE
-- MSE
-- PSNR
-
-## Output Folder Structure
-
-Every run creates a new folder inside `artifacts/runs/`.
-
-Example:
+Expected at:
 
 ```text
-artifacts/runs/20260418_235959_old-photo/
-|-- 01_input/
-|-- 02_analysis/
-|-- 03_preprocess/
-|-- 04_decision/
-|-- 05_restoration/
-|-- 06_postprocess/
-|-- 07_evaluation/
-`-- run_summary.json
+external/bringing-old-photos-back-to-life
 ```
 
-This makes it easy to inspect every stage separately.
+Important files/folders:
 
-## How Everything Is Connected
+- `run.py`
+- `Face_Detection/shape_predictor_68_face_landmarks.dat`
+- `Face_Enhancement/checkpoints/`
+- `Global/checkpoints/`
 
-The flow is:
+### DeOldify repo
 
-1. `cli.py` receives the arguments.
-2. `config.py` loads default settings and optional JSON overrides.
-3. `pipeline.py` orchestrates the whole run.
-4. `io_utils.py` creates the run folders and handles image/file saving.
-5. `analysis.py` inspects the image and produces analysis outputs.
-6. `decision.py` converts analysis into a restoration mode.
-7. `restoration.py` runs either the placeholder backend or an external command.
-   It can also call the Microsoft BOPTL pipeline directly through the `boptl` backend.
-8. `postprocess.py` refines the image after restoration.
-9. `evaluate.py` creates the visual comparison and optional metrics.
-10. `run_summary.json` ties all results together in one place.
+Expected at:
 
-So the project is split by responsibility:
+```text
+external/deoldify
+```
 
-- each stage has its own module,
-- `pipeline.py` connects them,
-- outputs are saved after every important step,
-- later you can replace only the restoration part without rewriting the rest.
+Important files/folders:
+
+- `deoldify/visualize.py`
+- `models/ColorizeArtistic_gen.pth`
+
+The app is already wired to use that local folder directly.
+
+## What Stays Out Of Git
+
+These are local-only and should stay untracked:
+
+- `external/bringing-old-photos-back-to-life/`
+- `external/deoldify/`
+- `artifacts/runs/`
+- `.venv/` and `.venv-*`
+- `result_images/`
+- `samples/`
+
+That keeps the repo focused on code, config, tests, and docs.
 
 ## Installation
+
+### Basic app setup
 
 From the project root:
 
@@ -259,122 +145,107 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-You can also install from `requirements.txt`, but `pip install -e .` is the best option because it installs the package and the CLI entry point.
+### Full model setup
 
-## Extra Dependencies For The Microsoft Model
-
-If you want to use the actual Microsoft backend, install its heavier dependencies too:
+If you want to use the Microsoft model and DeOldify too:
 
 ```powershell
 python -m pip install -r requirements-boptl.txt
 ```
 
-Notes:
+That file includes the extra packages needed by the heavier model-based flow.
 
-- this backend is much heavier than the simple scaffold,
-- CPU mode is supported through `gpu = -1`, but it can be very slow,
-- the external repo is research code, so behavior can vary by platform and Python package versions.
-
-## Basic Run
-
-Use a full image path:
+## Run The App
 
 ```powershell
-photo-reviver --input "C:\full\path\to\old_photo.jpg"
+streamlit run .\app.py
 ```
 
-Or run it directly as a module:
+Then:
+
+1. Upload an old photo.
+2. Press `Fix Photo`.
+3. Review the analysis and restoration tabs.
+4. Go to `Final Touches`.
+5. Adjust the sliders.
+6. Press `Apply Final Touches` or `Run DeOldify Colorization`.
+
+## Run From The CLI
+
+### Simple run
 
 ```powershell
-python -m photo_reviver.cli --input "C:\full\path\to\old_photo.jpg"
+photo-reviver --input ".\samples\old_photo_03.png"
 ```
 
-## Run With A Config File
+### Run with the Microsoft backend
 
 ```powershell
-photo-reviver --input "C:\full\path\to\old_photo.jpg" --config "configs/pipeline.example.json"
+photo-reviver --input ".\samples\old_photo_03.png" --config ".\configs\pipeline.boptl.json"
 ```
 
-## Run With The Microsoft Backend
-
-If the external repo and pretrained assets are already in place:
-
-```powershell
-photo-reviver --input ".\samples\old_photo_02.jpg" --config ".\configs\pipeline.boptl.json"
-```
-
-Or override the backend directly:
-
-```powershell
-photo-reviver --input ".\samples\old_photo_02.jpg" --backend boptl
-```
-
-The integrated repo path used by default is:
-
-```text
-external/bringing-old-photos-back-to-life
-```
-
-## Run With A Reference Image
-
-If you have a synthetic-damage setup or a clean target image:
+### Run with a reference image
 
 ```powershell
 photo-reviver --input "C:\full\path\to\damaged_photo.jpg" --reference "C:\full\path\to\clean_reference.jpg"
 ```
 
-## Run With A Different Output Folder
+## Output Layout
 
-```powershell
-photo-reviver --input "C:\full\path\to\old_photo.jpg" --output-root "custom_runs"
-```
+Every run creates a folder inside `artifacts/runs/`.
 
-## External Repo Layout
-
-The integrated external repo now lives here:
+Example:
 
 ```text
-external/bringing-old-photos-back-to-life/
+artifacts/runs/20260420_000000_old-photo/
+|-- 01_input/
+|-- 02_analysis/
+|-- 03_preprocess/
+|-- 04_decision/
+|-- 05_restoration/
+|-- 06_postprocess/
+|-- 07_evaluation/
+`-- run_summary.json
 ```
 
-Its local runtime layout is intentionally simple:
+Useful outputs:
 
-- `Face_Detection/` contains the dlib landmark model
-- `Face_Enhancement/checkpoints/` contains the face model weights
-- `Global/checkpoints/` contains the global restoration weights
-- unnecessary demo assets and installer leftovers can be cleaned away without touching the core inference path
+- `02_analysis/scratch_mask.png`
+- `02_analysis/scratch_overlay.png`
+- `05_restoration/restored_model_output.png`
+- `06_postprocess/final_restored.png`
+- `06_postprocess/colorized_output.png` when DeOldify runs
+- `07_evaluation/stage_comparison.png`
+- `run_summary.json`
 
-If you need to recreate the model asset setup later:
+## How The Code Is Connected
 
-```powershell
-python .\scripts\setup_boptl_assets.py
-```
+- `analysis.py` handles grayscale, histogram, scratch detection, and face detection.
+- `preprocess.py` prepares the image before restoration.
+- `decision.py` picks the restoration mode.
+- `restoration.py` runs the Microsoft repo or another backend.
+- `postprocess.py` applies enhancement, sharpening, and optional colorization.
+- `colorization.py` is the DeOldify integration layer.
+- `pipeline.py` connects the stages and also supports rerunning final touches after the model output.
+- `web_app.py` is the Streamlit app.
+
+## Scratch Detection
+
+The scratch detector has been returned to the simpler version again.
+
+It now uses a readable OpenCV heuristic instead of the more aggressive experimental path.  
+That makes the analysis easier to understand and easier to tune later.
 
 ## Testing
 
-Run the lightweight tests with:
+Run the tests with:
 
 ```powershell
 python -m unittest discover -s tests
 ```
 
-## Why This Structure Is Useful
+## Notes
 
-This scaffold is useful because it separates the project into clear layers:
-
-- input and file handling,
-- image analysis,
-- preprocessing,
-- decision logic,
-- restoration integration,
-- postprocessing,
-- evaluation and presentation.
-
-That makes the project easier to:
-
-- understand,
-- debug,
-- extend,
-- replace piece by piece.
-
-When you are ready, the next major step is to plug a real restoration model into `restoration.py` without changing the rest of the pipeline.
+- DeOldify is integrated through your local `external/deoldify` folder.
+- The app uses DeOldify only when you press the colorization button.
+- Final touches are intentionally separate from the restoration run so you can try different values without rerunning the whole pipeline.

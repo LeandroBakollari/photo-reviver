@@ -72,10 +72,9 @@ def run_pipeline(
     )
 
     final_image = load_image(postprocess_result.output_path)
-    preprocessed_image = load_image(preprocess_result.output_path)
     evaluation_result = evaluate_result(
         original_image=image,
-        preprocessed_image=preprocessed_image,
+        restored_image=restored_image,
         final_image=final_image,
         stage_dir=run_paths.evaluation_dir,
         reference_path=Path(reference_path).expanduser() if reference_path else None,
@@ -92,4 +91,35 @@ def run_pipeline(
         "evaluation": evaluation_result,
     }
     save_json(run_paths.run_root / "run_summary.json", summary)
+    return summary
+
+
+def rerun_final_touches(summary: dict, postprocess_config: dict) -> dict:
+    run_root = Path(summary["run_root"])
+    postprocess_dir = run_root / "06_postprocess"
+    evaluation_dir = run_root / "07_evaluation"
+
+    restored_image = load_image(summary["restoration"].output_path)
+    postprocess_result = postprocess_image(
+        image=restored_image,
+        postprocess_config=postprocess_config,
+        stage_dir=postprocess_dir,
+    )
+
+    original_image = load_image(summary["input_validation"].copied_path)
+    restored_image = load_image(summary["restoration"].output_path)
+    final_image = load_image(postprocess_result.output_path)
+    reference_path = summary["evaluation"].metrics.reference_path
+
+    evaluation_result = evaluate_result(
+        original_image=original_image,
+        restored_image=restored_image,
+        final_image=final_image,
+        stage_dir=evaluation_dir,
+        reference_path=reference_path,
+    )
+
+    summary["postprocess"] = postprocess_result
+    summary["evaluation"] = evaluation_result
+    save_json(run_root / "run_summary.json", summary)
     return summary
