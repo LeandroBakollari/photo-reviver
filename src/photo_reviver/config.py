@@ -28,6 +28,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "restoration": {
         "backend": "passthrough",
+        "repo_root": "external/bringing-old-photos-back-to-life",
+        "python_executable": "python",
+        "gpu": "-1",
+        "checkpoint_name": "Setting_9_epoch_100",
         "external_command": [
             "python",
             "external/microsoft-repo/run.py",

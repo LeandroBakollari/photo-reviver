@@ -30,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--backend",
-        choices=["passthrough", "external_command"],
+        choices=["passthrough", "boptl", "external_command"],
         help="Override the restoration backend from the config file.",
     )
     return parser

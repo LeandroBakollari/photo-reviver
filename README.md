@@ -34,6 +34,15 @@ Right now the default restoration backend is `passthrough`, which means:
 - the preprocessed image is simply passed forward as a placeholder,
 - you can later replace that stage with a Microsoft repo or another model.
 
+There is now also an optional real backend for the Microsoft repo:
+
+- backend name: `boptl`
+- expected repo path: `external/bringing-old-photos-back-to-life`
+- expected pretrained assets:
+  - `Face_Detection/shape_predictor_68_face_landmarks.dat`
+  - `Face_Enhancement/checkpoints/`
+  - `Global/checkpoints/`
+
 ## Project Structure
 
 ```text
@@ -41,8 +50,10 @@ photo-reviver/
 |-- artifacts/
 |   `-- runs/
 |-- configs/
+|   |-- pipeline.boptl.json
 |   `-- pipeline.example.json
 |-- external/
+|   `-- bringing-old-photos-back-to-life/
 |-- src/
 |   `-- photo_reviver/
 |       |-- __init__.py
@@ -60,10 +71,14 @@ photo-reviver/
 |-- tests/
 |   |-- test_config.py
 |   |-- test_decision.py
-|   `-- test_evaluate.py
+|   |-- test_evaluate.py
+|   `-- test_restoration.py
 |-- .gitignore
 |-- pyproject.toml
+|-- requirements-boptl.txt
 |-- requirements.txt
+|-- scripts/
+|   `-- setup_boptl_assets.py
 `-- README.md
 ```
 
@@ -142,11 +157,16 @@ What happens now:
 - this keeps the project runnable without a model
 - it creates the correct stage output and report
 
-What happens later:
+What also works now:
 
-- you can switch to `external_command`
-- that command can call a Microsoft repo `run.py`
-- the external command template lives in `configs/pipeline.example.json`
+- you can switch to the `boptl` backend
+- the project will call the Microsoft `run.py` for you
+- the config for that is in `configs/pipeline.boptl.json`
+
+Optional advanced path:
+
+- you can still use `external_command`
+- that is useful if you later want to integrate a different external model
 
 This means the project is already prepared for:
 
@@ -216,6 +236,7 @@ The flow is:
 5. `analysis.py` inspects the image and produces analysis outputs.
 6. `decision.py` converts analysis into a restoration mode.
 7. `restoration.py` runs either the placeholder backend or an external command.
+   It can also call the Microsoft BOPTL pipeline directly through the `boptl` backend.
 8. `postprocess.py` refines the image after restoration.
 9. `evaluate.py` creates the visual comparison and optional metrics.
 10. `run_summary.json` ties all results together in one place.
@@ -240,6 +261,20 @@ python -m pip install -e .
 
 You can also install from `requirements.txt`, but `pip install -e .` is the best option because it installs the package and the CLI entry point.
 
+## Extra Dependencies For The Microsoft Model
+
+If you want to use the actual Microsoft backend, install its heavier dependencies too:
+
+```powershell
+python -m pip install -r requirements-boptl.txt
+```
+
+Notes:
+
+- this backend is much heavier than the simple scaffold,
+- CPU mode is supported through `gpu = -1`, but it can be very slow,
+- the external repo is research code, so behavior can vary by platform and Python package versions.
+
 ## Basic Run
 
 Use a full image path:
@@ -260,6 +295,26 @@ python -m photo_reviver.cli --input "C:\full\path\to\old_photo.jpg"
 photo-reviver --input "C:\full\path\to\old_photo.jpg" --config "configs/pipeline.example.json"
 ```
 
+## Run With The Microsoft Backend
+
+If the external repo and pretrained assets are already in place:
+
+```powershell
+photo-reviver --input ".\samples\old_photo_02.jpg" --config ".\configs\pipeline.boptl.json"
+```
+
+Or override the backend directly:
+
+```powershell
+photo-reviver --input ".\samples\old_photo_02.jpg" --backend boptl
+```
+
+The integrated repo path used by default is:
+
+```text
+external/bringing-old-photos-back-to-life
+```
+
 ## Run With A Reference Image
 
 If you have a synthetic-damage setup or a clean target image:
@@ -274,39 +329,26 @@ photo-reviver --input "C:\full\path\to\damaged_photo.jpg" --reference "C:\full\p
 photo-reviver --input "C:\full\path\to\old_photo.jpg" --output-root "custom_runs"
 ```
 
-## How To Connect A Microsoft Restoration Repo Later
+## External Repo Layout
 
-1. Clone the external restoration repo into `external/`.
-2. Update `configs/pipeline.example.json`.
-3. Change the restoration backend to `external_command`.
-4. Fill the command template with the correct `run.py` arguments.
+The integrated external repo now lives here:
 
-Example idea:
-
-```json
-{
-  "restoration": {
-    "backend": "external_command",
-    "external_command": [
-      "python",
-      "external/microsoft-repo/run.py",
-      "--input",
-      "{input_path}",
-      "--output",
-      "{output_path}",
-      "--mode",
-      "{mode}"
-    ]
-  }
-}
+```text
+external/bringing-old-photos-back-to-life/
 ```
 
-The placeholders are:
+Its local runtime layout is intentionally simple:
 
-- `{input_path}`: preprocessed image
-- `{output_path}`: where the external tool should save the result
-- `{mode}`: `normal`, `scratch`, or `scratch+hr`
-- `{stage_dir}`: restoration stage folder for logs or extra artifacts
+- `Face_Detection/` contains the dlib landmark model
+- `Face_Enhancement/checkpoints/` contains the face model weights
+- `Global/checkpoints/` contains the global restoration weights
+- unnecessary demo assets and installer leftovers can be cleaned away without touching the core inference path
+
+If you need to recreate the model asset setup later:
+
+```powershell
+python .\scripts\setup_boptl_assets.py
+```
 
 ## Testing
 
