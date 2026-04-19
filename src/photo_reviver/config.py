@@ -21,10 +21,17 @@ DEFAULT_CONFIG: dict[str, Any] = {
         },
     },
     "preprocess": {
-        "denoise_strength": 7,
+        "profile": "auto",
+        "denoise_strength": 4,
+        "denoise_blend": 0.3,
         "use_clahe": True,
+        "clahe_clip_limit": 1.4,
+        "clahe_strength": 0.3,
         "resize_longest_side": 1600,
         "normalize_intensity": False,
+        "model_safe_denoise_strength": 0,
+        "model_safe_use_clahe": False,
+        "model_safe_resize_longest_side": None,
     },
     "restoration": {
         "backend": "passthrough",

@@ -48,6 +48,8 @@ def run_pipeline(
 
     preprocess_result = preprocess_image(
         image=image,
+        analysis=analysis,
+        backend=config["restoration"]["backend"],
         preprocess_config=config["preprocess"],
         stage_dir=run_paths.preprocess_dir,
     )

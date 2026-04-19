@@ -47,6 +47,7 @@ class ImageAnalysis:
 
 @dataclass
 class PreprocessResult:
+    profile: str
     output_path: Path
     applied_steps: list[str]
     original_size: tuple[int, int]
