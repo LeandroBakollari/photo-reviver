@@ -1,198 +1,235 @@
 # Photo Reviver
 
-`photo-reviver` is a small Python project for restoring old photos with a clear staged pipeline.
+`photo-reviver` is a small Python app for restoring old photos.
 
-This version is organized around three ideas:
+It is built around:
 
-- the Microsoft `Bringing-Old-Photos-Back-to-Life` repo handles the main restoration step,
-- the app shows every stage so you can inspect what changed,
-- final touches happen **after** the model output, with sliders for enhancement and sharpening, plus a button that runs **DeOldify** for colorization.
+- a simple Streamlit interface
+- Microsoft `Bringing-Old-Photos-Back-to-Life` for the main restoration
+- optional DeOldify colorization
+- a stage-by-stage view so you can inspect what happened
 
-## What The Project Does
+## What This Repo Contains
 
-The pipeline is split into the same stages you described:
+This repo keeps the app code, config, tests, and UI.
 
-1. Save and validate the uploaded image.
-2. Analyze the image:
-   - grayscale conversion
-   - histogram check
-   - low-contrast detection
-   - scratch estimation
-   - face detection
-   - HR-path suggestion
-3. Preprocess the image.
-4. Choose restoration mode:
-   - `normal`
-   - `scratch`
-   - `scratch+hr`
-5. Run the restoration engine.
-6. Apply final touches on top of the model output:
-   - enhancement
-   - sharpening
-   - optional DeOldify colorization
-7. Save the final image and comparison outputs.
+This repo does **not** keep the heavy pretrained models inside Git.
 
-## Current App Logic
+That means on another PC you only need to:
 
-The app now works like this:
+1. copy or clone this repo
+2. install Python packages
+3. download the pretrained model folders into `external/`
+4. run the app
 
-1. Upload a damaged image.
-2. Press `Fix Photo`.
-3. The restoration model runs first.
-4. Open the `Final Touches` tab.
-5. Adjust:
-   - `Enhancement strength`
-   - `Sharpening strength`
-6. Press:
-   - `Apply Final Touches` to update the restored image
-   - `Run DeOldify Colorization` to colorize the current final-touch version
+## Folder Layout
 
-This means enhancement, sharpening, and colorization all happen **after** the model output, which matches the workflow you wanted.
-
-## Project Structure
+Expected structure:
 
 ```text
 photo-reviver/
 |-- app.py
-|-- artifacts/
-|   `-- runs/
 |-- configs/
-|   |-- pipeline.boptl.json
-|   `-- pipeline.example.json
 |-- external/
 |   |-- bringing-old-photos-back-to-life/
 |   `-- deoldify/
-|-- scripts/
 |-- src/
-|   `-- photo_reviver/
-|       |-- __init__.py
-|       |-- analysis.py
-|       |-- app_utils.py
-|       |-- cli.py
-|       |-- colorization.py
-|       |-- config.py
-|       |-- decision.py
-|       |-- evaluate.py
-|       |-- io_utils.py
-|       |-- pipeline.py
-|       |-- postprocess.py
-|       |-- preprocess.py
-|       |-- restoration.py
-|       |-- types.py
-|       `-- web_app.py
 |-- tests/
-|-- pyproject.toml
-|-- requirements-boptl.txt
 |-- requirements.txt
+|-- requirements-boptl.txt
 `-- README.md
 ```
 
-## Important Folders
+Important external folders:
 
-### Microsoft restoration repo
+- `external/bringing-old-photos-back-to-life`
+- `external/deoldify`
 
-Expected at:
+## Move To Another PC
 
-```text
-external/bringing-old-photos-back-to-life
-```
+The easiest way is:
 
-Important files/folders:
+1. Put this whole project folder on GitHub or copy it with a zip.
+2. On the new PC, download or clone it.
+3. Recreate the virtual environment.
+4. Install the requirements.
+5. Download the pretrained model repos and weights into `external/`.
 
-- `run.py`
-- `Face_Detection/shape_predictor_68_face_landmarks.dat`
-- `Face_Enhancement/checkpoints/`
-- `Global/checkpoints/`
+You do **not** need to rewrite code or change paths if you keep the same folder names.
 
-### DeOldify repo
+## Requirements
 
-Expected at:
+- Python 3.11 or newer
+- Windows PowerShell
+- internet access for installing packages and downloading pretrained models
 
-```text
-external/deoldify
-```
+## Quick Start
 
-Important files/folders:
-
-- `deoldify/visualize.py`
-- `models/ColorizeArtistic_gen.pth`
-
-The app is already wired to use that local folder directly.
-
-## What Stays Out Of Git
-
-These are local-only and should stay untracked:
-
-- `external/bringing-old-photos-back-to-life/`
-- `external/deoldify/`
-- `artifacts/runs/`
-- `.venv/` and `.venv-*`
-- `result_images/`
-- `samples/`
-
-That keeps the repo focused on code, config, tests, and docs.
-
-## Installation
-
-### Basic app setup
-
-From the project root:
+If you only want to open the app and test the basic interface:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e .
+streamlit run .\app.py
 ```
 
-### Full model setup
+This basic setup is enough for:
 
-If you want to use the Microsoft model and DeOldify too:
+- the Streamlit app
+- image upload
+- preprocessing
+- analysis
+- passthrough mode
+
+It is **not** enough for the Microsoft restoration model.
+
+## Full Setup For Another PC
+
+Use these steps if you want the real restoration model.
+
+### 1. Clone or copy the repo
+
+```powershell
+git clone <your-repo-url>
+cd photo-reviver
+```
+
+If you are not using Git, just copy the project folder and open PowerShell in that folder.
+
+### 2. Create and activate a virtual environment
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+```
+
+### 3. Install Python packages
+
+Install the app:
+
+```powershell
+python -m pip install -e .
+```
+
+Install the heavier model dependencies too:
 
 ```powershell
 python -m pip install -r requirements-boptl.txt
 ```
 
-That file includes the extra packages needed by the heavier model-based flow.
+### 4. Download the Microsoft restoration repo
+
+Download the Microsoft `Bringing-Old-Photos-Back-to-Life` project and place it here:
+
+```text
+external/bringing-old-photos-back-to-life
+```
+
+After that, this file should exist:
+
+```text
+external/bringing-old-photos-back-to-life/run.py
+```
+
+You also need its pretrained assets. These paths must exist:
+
+```text
+external/bringing-old-photos-back-to-life/Face_Detection/shape_predictor_68_face_landmarks.dat
+external/bringing-old-photos-back-to-life/Face_Enhancement/checkpoints/
+external/bringing-old-photos-back-to-life/Global/checkpoints/
+```
+
+### 5. Optional: Download DeOldify
+
+If you also want colorization, download DeOldify and place it here:
+
+```text
+external/deoldify
+```
+
+This file should exist:
+
+```text
+external/deoldify/deoldify/visualize.py
+```
+
+And this weight file should exist:
+
+```text
+external/deoldify/models/ColorizeArtistic_gen.pth
+```
 
 ## Run The App
+
+From the project root:
 
 ```powershell
 streamlit run .\app.py
 ```
 
-Then:
+Then in the app:
 
-1. Upload an old photo.
-2. Press `Fix Photo`.
-3. Review the analysis and restoration tabs.
-4. Go to `Final Touches`.
-5. Adjust the sliders.
-6. Press `Apply Final Touches` or `Run DeOldify Colorization`.
+1. upload a photo
+2. choose the restoration engine in the sidebar
+3. press `Fix Photo`
+4. check the `Analysis` tab
+5. check the `Restoration` tab
+6. use the `Final Touches` tab if needed
 
-## Run From The CLI
+## Which Backend To Choose
 
-### Simple run
+The app sidebar gives you two main choices:
+
+- `Microsoft model (best quality, slower)`
+- `Simple pipeline only (fast, no learned restoration)`
+
+Use `Microsoft model` if the Microsoft repo and checkpoints are installed correctly.
+
+If the model files are missing, the app will warn you in the sidebar.
+
+## Scratch Detection In The App
+
+The app can show two kinds of scratch detection:
+
+- Microsoft pretrained scratch detector
+- local OpenCV fallback detector
+
+If the Microsoft backend is available, the app tries to use the Microsoft detector for the scratch preview in the `Analysis` tab.
+
+If that detector cannot run, the app falls back to the local heuristic.
+
+You can check the `Scratch detector` line in the `Analysis` tab to see which one was used.
+
+## Run From The Command Line
+
+Basic run:
 
 ```powershell
 photo-reviver --input ".\samples\old_photo_03.png"
 ```
 
-### Run with the Microsoft backend
+Run with the Microsoft backend config:
 
 ```powershell
 photo-reviver --input ".\samples\old_photo_03.png" --config ".\configs\pipeline.boptl.json"
 ```
 
-### Run with a reference image
+Run with a reference image:
 
 ```powershell
 photo-reviver --input "C:\full\path\to\damaged_photo.jpg" --reference "C:\full\path\to\clean_reference.jpg"
 ```
 
-## Output Layout
+## Output Files
 
-Every run creates a folder inside `artifacts/runs/`.
+Each run creates a folder inside:
+
+```text
+artifacts/runs/
+```
 
 Example:
 
@@ -208,44 +245,61 @@ artifacts/runs/20260420_000000_old-photo/
 `-- run_summary.json
 ```
 
-Useful outputs:
+Useful files:
 
 - `02_analysis/scratch_mask.png`
 - `02_analysis/scratch_overlay.png`
 - `05_restoration/restored_model_output.png`
 - `06_postprocess/final_restored.png`
-- `06_postprocess/colorized_output.png` when DeOldify runs
+- `06_postprocess/colorized_output.png`
 - `07_evaluation/stage_comparison.png`
-- `run_summary.json`
-
-## How The Code Is Connected
-
-- `analysis.py` handles grayscale, histogram, scratch detection, and face detection.
-- `preprocess.py` prepares the image before restoration.
-- `decision.py` picks the restoration mode.
-- `restoration.py` runs the Microsoft repo or another backend.
-- `postprocess.py` applies enhancement, sharpening, and optional colorization.
-- `colorization.py` is the DeOldify integration layer.
-- `pipeline.py` connects the stages and also supports rerunning final touches after the model output.
-- `web_app.py` is the Streamlit app.
-
-## Scratch Detection
-
-The scratch detector has been returned to the simpler version again.
-
-It now uses a readable OpenCV heuristic instead of the more aggressive experimental path.  
-That makes the analysis easier to understand and easier to tune later.
 
 ## Testing
 
-Run the tests with:
+Run tests with:
 
 ```powershell
 python -m unittest discover -s tests
 ```
 
+## Troubleshooting
+
+### The Microsoft model does not appear in the app
+
+Check that these exist:
+
+- `external/bringing-old-photos-back-to-life/run.py`
+- `external/bringing-old-photos-back-to-life/Face_Detection/shape_predictor_68_face_landmarks.dat`
+- `external/bringing-old-photos-back-to-life/Face_Enhancement/checkpoints/`
+- `external/bringing-old-photos-back-to-life/Global/checkpoints/`
+
+### Colorization button is disabled
+
+Check that these exist:
+
+- `external/deoldify/deoldify/visualize.py`
+- `external/deoldify/models/ColorizeArtistic_gen.pth`
+
+### The app opens but restoration does not run
+
+Make sure you installed both:
+
+```powershell
+python -m pip install -e .
+python -m pip install -r requirements-boptl.txt
+```
+
+### I only want to move the code to another PC
+
+You can move this repo without the `external/` model folders.
+
+Later, on the new PC, just install requirements and download the pretrained model folders into:
+
+- `external/bringing-old-photos-back-to-life`
+- `external/deoldify`
+
 ## Notes
 
-- DeOldify is integrated through your local `external/deoldify` folder.
-- The app uses DeOldify only when you press the colorization button.
-- Final touches are intentionally separate from the restoration run so you can try different values without rerunning the whole pipeline.
+- final touches happen after the restoration output
+- DeOldify is optional
+- the Microsoft model is slower but gives the best restoration results in this project
