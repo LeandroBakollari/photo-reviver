@@ -35,23 +35,8 @@ external/*
 !external/.gitkeep
 !external/bringing-old-photos-back-to-life/
 !external/deoldify/
-external/**/__pycache__/
-external/**/*.pyc
-external/**/.ipynb_checkpoints/
-external/**/.pytest_cache/
-external/**/.mypy_cache/
-external/**/.ruff_cache/
-external/**/.git/
-external/**/.DS_Store
-external/**/*.pth
-external/**/*.pt
-external/**/*.ckpt
-external/**/*.onnx
-external/**/*.bin
-external/**/*.safetensors
-external/**/*.h5
-external/**/*.pb
-external/**/*.weights
+external/bringing-old-photos-back-to-life/Face_Enhancement/checkpoints
+external/bringing-old-photos-back-to-life/Global/checkpoints
 external/**/shape_predictor_68_face_landmarks.dat
 
 # Local test images
