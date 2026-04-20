@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 from photo_reviver.io_utils import load_image, save_image, save_json
@@ -123,9 +124,13 @@ class BoptlRestorationRunner:
     def run(self, input_path: Path, mode: str, stage_dir: Path) -> RestorationResult:
         if not self.repo_root.exists():
             raise FileNotFoundError(f"BOPTL repo not found: {self.repo_root}")
+        stage_dir.mkdir(parents=True, exist_ok=True)
 
-        input_dir = (stage_dir / "boptl_input").resolve()
-        output_dir = (stage_dir / "boptl_output").resolve()
+        # The upstream repo shells out via string-built commands on Windows, so
+        # its input/output paths must avoid spaces.
+        temp_work_dir = Path(tempfile.mkdtemp(prefix="photo_reviver_boptl_")).resolve()
+        input_dir = temp_work_dir / "input"
+        output_dir = temp_work_dir / "output"
         input_dir.mkdir(parents=True, exist_ok=True)
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -159,7 +164,10 @@ class BoptlRestorationRunner:
             if error.stderr:
                 log_text = f"{log_text}\n\n[stderr]\n{error.stderr}".strip()
             log_path.write_text(log_text, encoding="utf-8")
-            raise
+            raise RuntimeError(
+                "BOPTL restoration failed. Check the runtime log for details: "
+                f"{log_path}"
+            ) from error
 
         final_output_dir = output_dir / "final_output"
         output_files = sorted(path for path in final_output_dir.iterdir() if path.is_file())
