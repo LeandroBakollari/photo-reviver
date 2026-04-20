@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import cv2
@@ -70,6 +71,89 @@ def estimate_scratch_severity(
     return scratch_ratio, severity, scratch_mask, "blackhat threshold heuristic"
 
 
+def summarize_scratch_mask(
+    scratch_mask: np.ndarray,
+    medium_threshold: float,
+    high_threshold: float,
+) -> tuple[float, str]:
+    scratch_ratio = float(np.count_nonzero(scratch_mask) / scratch_mask.size)
+    if scratch_ratio >= high_threshold:
+        severity = "high"
+    elif scratch_ratio >= medium_threshold:
+        severity = "medium"
+    else:
+        severity = "low"
+    return scratch_ratio, severity
+
+
+def estimate_scratch_severity_with_boptl(
+    image: np.ndarray,
+    restoration_config: dict,
+    stage_dir: Path,
+    medium_threshold: float,
+    high_threshold: float,
+) -> tuple[float, str, np.ndarray, str]:
+    repo_root = Path(restoration_config["repo_root"]).resolve()
+    detection_script = repo_root / "Global" / "detection.py"
+    python_executable = str(restoration_config.get("python_executable", "python"))
+    gpu = str(restoration_config.get("gpu", "-1"))
+
+    detection_input_dir = stage_dir / "boptl_detection_input"
+    detection_output_dir = stage_dir / "boptl_detection_output"
+    detection_input_dir.mkdir(parents=True, exist_ok=True)
+    detection_output_dir.mkdir(parents=True, exist_ok=True)
+
+    input_path = save_image(detection_input_dir / "analysis_input.png", image)
+    command = [
+        python_executable,
+        str(detection_script),
+        "--test_path",
+        str(detection_input_dir),
+        "--output_dir",
+        str(detection_output_dir),
+        "--input_size",
+        "full_size",
+        "--GPU",
+        gpu,
+    ]
+
+    completed = subprocess.run(
+        command,
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=repo_root / "Global",
+    )
+    log_text = completed.stdout
+    if completed.stderr:
+        log_text = f"{log_text}\n\n[stderr]\n{completed.stderr}".strip()
+    (stage_dir / "scratch_detection.log").write_text(log_text, encoding="utf-8")
+
+    mask_path = detection_output_dir / "mask" / f"{input_path.stem}.png"
+    if not mask_path.exists():
+        raise FileNotFoundError(f"Microsoft scratch detector did not create mask: {mask_path}")
+
+    scratch_mask = load_image(mask_path)
+    if scratch_mask.ndim == 3:
+        scratch_mask = cv2.cvtColor(scratch_mask, cv2.COLOR_BGR2GRAY)
+    _, scratch_mask = cv2.threshold(scratch_mask, 127, 255, cv2.THRESH_BINARY)
+
+    target_height, target_width = image.shape[:2]
+    if scratch_mask.shape[:2] != (target_height, target_width):
+        scratch_mask = cv2.resize(
+            scratch_mask,
+            (target_width, target_height),
+            interpolation=cv2.INTER_NEAREST,
+        )
+
+    scratch_ratio, severity = summarize_scratch_mask(
+        scratch_mask,
+        medium_threshold=medium_threshold,
+        high_threshold=high_threshold,
+    )
+    return scratch_ratio, severity, scratch_mask, "Microsoft U-Net scratch detector"
+
+
 def create_scratch_overlay(image: np.ndarray, scratch_mask: np.ndarray) -> np.ndarray:
     overlay = ensure_color(image).copy()
     highlight = overlay.copy()
@@ -120,8 +204,6 @@ def analyze_image(
     stage_dir: Path,
     restoration_config: dict | None = None,
 ) -> ImageAnalysis:
-    del restoration_config
-
     gray_image = to_grayscale(image)
     grayscale_path = save_image(stage_dir / "grayscale.png", gray_image)
 
@@ -136,13 +218,43 @@ def analyze_image(
         ),
     )
 
-    scratch_ratio, scratch_severity, scratch_mask, scratch_detection_method = estimate_scratch_severity(
-        gray_image,
-        medium_threshold=float(
-            analysis_config["scratch_ratio_thresholds"]["medium"]
-        ),
-        high_threshold=float(analysis_config["scratch_ratio_thresholds"]["high"]),
-    )
+    medium_threshold = float(analysis_config["scratch_ratio_thresholds"]["medium"])
+    high_threshold = float(analysis_config["scratch_ratio_thresholds"]["high"])
+    scratch_notes: list[str] = []
+    try:
+        if (
+            restoration_config
+            and restoration_config.get("backend") == "boptl"
+            and Path(restoration_config["repo_root"]).exists()
+        ):
+            scratch_ratio, scratch_severity, scratch_mask, scratch_detection_method = (
+                estimate_scratch_severity_with_boptl(
+                    image=image,
+                    restoration_config=restoration_config,
+                    stage_dir=stage_dir,
+                    medium_threshold=medium_threshold,
+                    high_threshold=high_threshold,
+                )
+            )
+        else:
+            scratch_ratio, scratch_severity, scratch_mask, scratch_detection_method = (
+                estimate_scratch_severity(
+                    gray_image,
+                    medium_threshold=medium_threshold,
+                    high_threshold=high_threshold,
+                )
+            )
+    except Exception as error:
+        scratch_ratio, scratch_severity, scratch_mask, scratch_detection_method = estimate_scratch_severity(
+            gray_image,
+            medium_threshold=medium_threshold,
+            high_threshold=high_threshold,
+        )
+        scratch_notes.append(
+            "Microsoft scratch detector was unavailable, so the app fell back to the OpenCV heuristic."
+        )
+        scratch_notes.append(f"Detector fallback reason: {error}")
+
     scratch_mask_path = save_image(stage_dir / "scratch_mask.png", scratch_mask)
     scratch_overlay_path = save_image(
         stage_dir / "scratch_overlay.png",
@@ -167,6 +279,7 @@ def analyze_image(
         notes.append(f"Detected {face_count} face(s) with a classical OpenCV detector.")
     if needs_hr:
         notes.append("Image is small enough that a high-resolution path may help later.")
+    notes.extend(scratch_notes)
 
     analysis = ImageAnalysis(
         grayscale_path=grayscale_path.resolve(),

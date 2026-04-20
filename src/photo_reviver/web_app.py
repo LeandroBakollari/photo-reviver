@@ -17,6 +17,7 @@ from photo_reviver.app_utils import (
     describe_validation,
 )
 from photo_reviver.config import apply_cli_overrides, load_config
+from photo_reviver.io_utils import load_image
 from photo_reviver.pipeline import rerun_final_touches, run_pipeline
 
 
@@ -118,6 +119,13 @@ def close_stage_box() -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+def render_image(image_path: Path, caption: str, use_container_width: bool = True) -> None:
+    image = load_image(image_path)
+    if image.ndim == 3:
+        image = image[:, :, ::-1]
+    st.image(image, caption=caption, use_container_width=use_container_width)
+
+
 def unpack_summary(summary: dict):
     validation = summary["input_validation"]
     analysis = summary["analysis"]
@@ -210,25 +218,31 @@ def render_result(summary: dict, config: dict) -> None:
 
     with tabs[0]:
         render_stage_box("Uploaded Photo", "The app validates the image and stores a clean copy for the run.")
-        st.image(str(original_path), use_container_width=True)
+        render_image(original_path, "Uploaded Photo")
         render_lines(describe_validation(validation))
         close_stage_box()
 
     with tabs[1]:
         render_stage_box("Image Analysis", "These views help explain why the pipeline chose a certain restoration path.")
         gray_col, hist_col, scratch_col, overlay_col = st.columns(4)
-        gray_col.image(str(analysis.grayscale_path), caption="Grayscale View", use_container_width=True)
-        hist_col.image(str(analysis.histogram_path), caption="Histogram", use_container_width=True)
-        scratch_col.image(str(analysis.scratch_mask_path), caption="Scratch Mask", use_container_width=True)
-        overlay_col.image(str(analysis.scratch_overlay_path), caption="Scratch Overlay", use_container_width=True)
+        with gray_col:
+            render_image(analysis.grayscale_path, "Grayscale View")
+        with hist_col:
+            render_image(analysis.histogram_path, "Histogram")
+        with scratch_col:
+            render_image(analysis.scratch_mask_path, "Scratch Mask")
+        with overlay_col:
+            render_image(analysis.scratch_overlay_path, "Scratch Overlay")
         render_lines(describe_analysis(analysis))
         close_stage_box()
 
     with tabs[2]:
         render_stage_box("Preprocess", "This stage gently prepares the image before restoration.")
         before_col, after_col = st.columns(2)
-        before_col.image(str(original_path), caption="Original", use_container_width=True)
-        after_col.image(str(preprocessed_path), caption="Preprocessed", use_container_width=True)
+        with before_col:
+            render_image(original_path, "Original")
+        with after_col:
+            render_image(preprocessed_path, "Preprocessed")
         render_lines(describe_preprocess(preprocess))
         close_stage_box()
 
@@ -241,8 +255,10 @@ def render_result(summary: dict, config: dict) -> None:
     with tabs[4]:
         render_stage_box("Restoration Output", "This is the image right after the restoration engine runs.")
         before_col, after_col = st.columns(2)
-        before_col.image(str(preprocessed_path), caption="Input To Restoration", use_container_width=True)
-        after_col.image(str(restored_path), caption="Restoration Output", use_container_width=True)
+        with before_col:
+            render_image(preprocessed_path, "Input To Restoration")
+        with after_col:
+            render_image(restored_path, "Restoration Output")
         render_lines(describe_restoration(restoration))
         close_stage_box()
 
@@ -324,14 +340,12 @@ def render_result(summary: dict, config: dict) -> None:
 
         with preview_col:
             before_col, after_col = st.columns(2)
-            before_col.image(str(restored_path), caption="After Restoration", use_container_width=True)
-            after_col.image(str(final_path), caption="After Final Touches", use_container_width=True)
+            with before_col:
+                render_image(restored_path, "After Restoration")
+            with after_col:
+                render_image(final_path, "After Final Touches")
             if postprocess.colorized_path:
-                st.image(
-                    str(postprocess.colorized_path),
-                    caption="DeOldify Colorized Output",
-                    use_container_width=True,
-                )
+                render_image(postprocess.colorized_path, "DeOldify Colorized Output")
 
         render_lines(describe_postprocess(postprocess))
         close_stage_box()
@@ -339,15 +353,15 @@ def render_result(summary: dict, config: dict) -> None:
     with tabs[6]:
         render_stage_box("Final Result", "Here is the finished image and the main comparison views.")
         stage_col_1, stage_col_2, stage_col_3, stage_col_4 = st.columns(4)
-        stage_col_1.image(str(original_path), caption="Original", use_container_width=True)
-        stage_col_2.image(str(analysis.grayscale_path), caption="Grayscale", use_container_width=True)
-        stage_col_3.image(str(restored_path), caption="After Restoration Model", use_container_width=True)
-        stage_col_4.image(str(final_path), caption="After Final Touches", use_container_width=True)
-        st.image(
-            str(evaluation.comparison_path),
-            caption="Stage-By-Stage Comparison",
-            use_container_width=True,
-        )
+        with stage_col_1:
+            render_image(original_path, "Original")
+        with stage_col_2:
+            render_image(analysis.grayscale_path, "Grayscale")
+        with stage_col_3:
+            render_image(restored_path, "After Restoration Model")
+        with stage_col_4:
+            render_image(final_path, "After Final Touches")
+        render_image(evaluation.comparison_path, "Stage-By-Stage Comparison")
         with open(final_path, "rb") as file:
             st.download_button(
                 "Download Final Image",

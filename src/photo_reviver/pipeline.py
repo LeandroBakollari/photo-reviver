@@ -44,6 +44,7 @@ def run_pipeline(
         validation=validation,
         analysis_config=config["analysis"],
         stage_dir=run_paths.analysis_dir,
+        restoration_config=config["restoration"],
     )
 
     preprocess_result = preprocess_image(
