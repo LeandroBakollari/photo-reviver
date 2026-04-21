@@ -63,6 +63,34 @@ class PreprocessTests(unittest.TestCase):
         self.assertEqual(result.processed_size, (24, 24))
         self.assertIn("model-safe preprocessing kept the image close to the original", result.applied_steps)
 
+    def test_model_safe_profile_can_resize_large_image(self) -> None:
+        image = np.full((60, 120, 3), 120, dtype=np.uint8)
+        config = {
+            "profile": "auto",
+            "denoise_strength": 4,
+            "denoise_blend": 0.3,
+            "use_clahe": True,
+            "clahe_clip_limit": 1.4,
+            "clahe_strength": 0.3,
+            "resize_longest_side": 1600,
+            "normalize_intensity": False,
+            "model_safe_denoise_strength": 0,
+            "model_safe_use_clahe": False,
+            "model_safe_resize_longest_side": 48,
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = preprocess_image(
+                image=image,
+                analysis=make_analysis(low_contrast=False),
+                backend="boptl",
+                preprocess_config=config,
+                stage_dir=Path(temp_dir),
+            )
+
+        self.assertEqual(result.processed_size, (48, 24))
+        self.assertIn("resized for stable processing", result.applied_steps)
+
 
 if __name__ == "__main__":
     unittest.main()

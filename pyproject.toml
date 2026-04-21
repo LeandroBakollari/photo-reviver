@@ -11,11 +11,16 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26,<3.0",
     "opencv-python>=4.10,<5.0",
+]
+
+[project.optional-dependencies]
+web = [
     "streamlit>=1.44,<2.0",
 ]
 
 [project.scripts]
 photo-reviver = "photo_reviver.cli:main"
+photo-reviver-app = "photo_reviver.desktop_app:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

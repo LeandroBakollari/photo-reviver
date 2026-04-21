@@ -24,7 +24,7 @@
     "normalize_intensity": false,
     "model_safe_denoise_strength": 0,
     "model_safe_use_clahe": false,
-    "model_safe_resize_longest_side": null
+    "model_safe_resize_longest_side": 768
   },
   "restoration": {
     "backend": "boptl",

@@ -6,7 +6,12 @@ from unittest.mock import patch
 import numpy as np
 
 from photo_reviver.colorization import (
+    ColorizationResult,
     apply_deoldify_colorization,
+    apply_deoldify_palette_colorization,
+    apply_palette_colorization,
+    apply_staged_colorization,
+    available_palette_presets,
     colorization_assets_ready,
 )
 from photo_reviver.io_utils import save_image
@@ -56,6 +61,79 @@ class ColorizationTests(unittest.TestCase):
         self.assertFalse(result.applied)
         self.assertEqual(result.output_image.shape, image.shape)
         self.assertTrue(result.notes)
+
+    def test_palette_colorization_provides_six_options(self) -> None:
+        palettes = available_palette_presets()
+
+        self.assertEqual(len(palettes), 6)
+        self.assertTrue(all(item["key"] for item in palettes))
+
+    def test_palette_colorization_creates_color_output(self) -> None:
+        gray = np.tile(np.arange(16, dtype=np.uint8), (16, 1)) * 16
+
+        result = apply_palette_colorization(gray, "vivid", intensity=1.0)
+
+        self.assertTrue(result.applied)
+        self.assertEqual(result.output_image.shape, (16, 16, 3))
+        self.assertFalse(
+            np.array_equal(result.output_image[:, :, 0], result.output_image[:, :, 2])
+        )
+
+    def test_deoldify_palette_colorization_grades_deoldify_output(self) -> None:
+        image = np.full((12, 12, 3), 90, dtype=np.uint8)
+        deoldify_output = np.full((12, 12, 3), 150, dtype=np.uint8)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch(
+                "photo_reviver.colorization.apply_deoldify_colorization",
+                return_value=ColorizationResult(
+                    output_image=deoldify_output,
+                    applied=True,
+                    notes=["DeOldify colorization was applied."],
+                ),
+            ):
+                result = apply_deoldify_palette_colorization(
+                    image=image,
+                    colorization_config={},
+                    palette_key="cool",
+                    intensity=0.75,
+                    stage_dir=Path(temp_dir),
+                )
+
+        self.assertTrue(result.applied)
+        self.assertEqual(result.output_image.shape, image.shape)
+        self.assertTrue(any("after DeOldify" in note for note in result.notes))
+
+    def test_staged_colorization_can_apply_palettes_before_and_after_model(self) -> None:
+        image = np.full((12, 12, 3), 90, dtype=np.uint8)
+        deoldify_output = np.full((12, 12, 3), 150, dtype=np.uint8)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch(
+                "photo_reviver.colorization.apply_deoldify_colorization",
+                return_value=ColorizationResult(
+                    output_image=deoldify_output,
+                    applied=True,
+                    notes=["DeOldify colorization was applied."],
+                ),
+            ):
+                result = apply_staged_colorization(
+                    image=image,
+                    colorization_config={},
+                    stage_dir=Path(temp_dir),
+                    use_deoldify=True,
+                    before_palette_key="classic",
+                    before_intensity=0.25,
+                    after_palette_key="vivid",
+                    after_intensity=0.75,
+                )
+
+        self.assertTrue(result.applied)
+        self.assertTrue(result.used_deoldify)
+        self.assertEqual(result.base_image.shape, image.shape)
+        self.assertEqual(result.output_image.shape, image.shape)
+        self.assertTrue(any("before DeOldify" in note for note in result.notes))
+        self.assertTrue(any("after DeOldify" in note for note in result.notes))
 
     def test_colorization_uses_fake_deoldify_runner(self) -> None:
         image = np.full((12, 12, 3), 90, dtype=np.uint8)

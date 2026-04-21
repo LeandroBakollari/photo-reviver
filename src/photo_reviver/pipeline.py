@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Callable
 
 from photo_reviver.analysis import analyze_image
 from photo_reviver.decision import choose_restoration_mode
@@ -21,7 +22,12 @@ def run_pipeline(
     input_path: str,
     config: dict,
     reference_path: str | None = None,
+    progress_callback: Callable[[str, str], None] | None = None,
 ) -> dict:
+    def notify(stage: str, message: str) -> None:
+        if progress_callback:
+            progress_callback(stage, message)
+
     source_path = Path(input_path).expanduser()
     if not source_path.exists():
         raise FileNotFoundError(f"Input image not found: {source_path}")
@@ -29,6 +35,7 @@ def run_pipeline(
     output_root = Path(config["paths"]["output_root"])
     run_paths = build_run_paths(output_root, source_path.stem)
 
+    notify("upload", "Copying and validating the uploaded photo.")
     copied_input = copy_input_file(source_path, run_paths.input_dir)
     image = load_image(copied_input)
     validation = validate_image(
@@ -39,6 +46,7 @@ def run_pipeline(
         min_height=int(config["analysis"]["min_height"]),
     )
 
+    notify("analysis", "Analyzing contrast, scratches, faces, and image size.")
     analysis = analyze_image(
         image=image,
         validation=validation,
@@ -47,6 +55,7 @@ def run_pipeline(
         restoration_config=config["restoration"],
     )
 
+    notify("preprocess", "Preparing the image before restoration.")
     preprocess_result = preprocess_image(
         image=image,
         analysis=analysis,
@@ -55,9 +64,11 @@ def run_pipeline(
         stage_dir=run_paths.preprocess_dir,
     )
 
+    notify("decision", "Choosing the restoration mode.")
     decision = choose_restoration_mode(analysis)
     save_json(run_paths.decision_dir / "decision.json", decision)
 
+    notify("restoration", "Running the restoration engine.")
     restoration_runner = build_restoration_runner(config["restoration"])
     restoration_result = restoration_runner.run(
         input_path=preprocess_result.output_path,
@@ -65,6 +76,7 @@ def run_pipeline(
         stage_dir=run_paths.restoration_dir,
     )
 
+    notify("postprocess", "Writing the restored stage output.")
     restored_image = load_image(restoration_result.output_path)
     postprocess_result = postprocess_image(
         image=restored_image,
@@ -73,6 +85,7 @@ def run_pipeline(
         original_is_grayscale=validation.is_grayscale,
     )
 
+    notify("evaluation", "Building the stage comparison.")
     final_image = load_image(postprocess_result.output_path)
     evaluation_result = evaluate_result(
         original_image=image,
@@ -93,6 +106,7 @@ def run_pipeline(
         "evaluation": evaluation_result,
     }
     save_json(run_paths.run_root / "run_summary.json", summary)
+    notify("complete", "Restoration pipeline completed.")
     return summary
 
 

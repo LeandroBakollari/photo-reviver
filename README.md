@@ -1,16 +1,17 @@
 # Photo Reviver
 
-Photo Reviver is a local Python app for restoring old or damaged photos. It provides a Streamlit interface, a command-line entry point, and a repeatable stage-based pipeline for analysis, preprocessing, restoration, final touches, and output review.
+Photo Reviver is a local Python app for restoring old or damaged photos. It provides a normal desktop window, a command-line entry point, and a repeatable stage-based pipeline for analysis, preprocessing, restoration, colorization, enhancement, and output review.
 
 The app supports:
 
-- image upload and preview in Streamlit
+- image upload and preview in a desktop window
 - scratch, contrast, and image-quality analysis
 - preprocessing before restoration
 - a simple passthrough backend for testing the pipeline
 - optional Microsoft `Bringing-Old-Photos-Back-to-Life` restoration
 - optional DeOldify colorization
-- final enhancement and sharpening controls
+- DeOldify colorization with six palette choices applied after the model
+- smart enhancement recommendations plus controls for brightness, contrast, gamma, saturation, vibrance, warmth, tint, clarity, denoise, and sharpening
 - stage-by-stage output files and a run summary
 
 Pretrained model repositories and weights are not stored in this repository. They must be downloaded separately into `external/`.
@@ -34,7 +35,13 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-This installs the app, the Streamlit interface, and the simple local pipeline.
+This installs the desktop app and the simple local pipeline.
+
+If you also want the legacy Streamlit interface:
+
+```powershell
+python -m pip install -e ".[web]"
+```
 
 If you plan to use the Microsoft restoration backend or DeOldify, also install:
 
@@ -44,23 +51,45 @@ python -m pip install -r requirements-boptl.txt
 
 Some packages in the model dependency set, especially Torch and dlib, may need platform-specific wheels depending on the machine and GPU setup.
 
-## Run the App
+## Run the Desktop App
 
-Start the Streamlit interface:
+Start the normal windowed app:
 
 ```powershell
-streamlit run .\app.py
+python .\app.py
 ```
 
 In the app:
 
 1. Upload a photo.
-2. Choose the restoration engine in the sidebar.
-3. Select `Fix Photo`.
-4. Review the analysis, preprocessing, restoration, and final result tabs.
-5. Use final touches for enhancement, sharpening, or optional colorization.
+2. Choose the restoration engine in the sidebar. For BOPTL, keep `BOPTL max side` low enough for your CPU memory.
+3. Select `Restore Photo`.
+4. Review the upload, analysis, preprocessing, and restoration progress.
+5. Choose whether to colorize the restored image.
+6. Run the DeOldify model first.
+7. Optionally add one of the six palettes after the model output. Each preview is saved as a numbered version for later comparison.
+8. Choose `Keep This Version` or `Keep Restored Original`; the app then opens enhancement with that image loaded.
+9. Adjust the smart enhancement slider recommendations as needed.
+10. Review the original, after-restoration, after-colorization, and final-touch comparison.
+11. Use `Download Final Product` to export the finished image.
+
+You can also start the desktop app from an installed environment:
+
+```powershell
+photo-reviver-app
+```
+
+### Legacy Streamlit Interface
+
+The old Streamlit module is still available if the optional web dependency is installed:
+
+```powershell
+streamlit run .\src\photo_reviver\web_app.py
+```
 
 If the Microsoft model assets are missing, the app will show which required paths were not found. The simple pipeline remains available for testing the interface and output flow.
+
+For CPU-only BOPTL runs, `BOPTL max side` controls the longest side of the image sent into the Microsoft model. Lower values use less memory. Start with `768`; use `640` or `512` if the model reports CPU memory errors.
 
 ## Optional Model Setup
 
@@ -175,6 +204,12 @@ Common files:
 - `05_restoration/restored_model_output.png`
 - `06_postprocess/final_restored.png`
 - `06_postprocess/colorized_output.png`
+- `06_postprocess/colorization_versions/v##_*/model_input.png`
+- `06_postprocess/colorization_versions/v##_*/preview_output.png`
+- `06_postprocess/colorization_versions/v##_*/deoldify_base.png`
+- `06_postprocess/colorization_versions/v##_*/metadata.json`
+- `06_postprocess/colorization_versions/colorization_versions_comparison.png`
+- `06_postprocess/colorization_versions/deoldify_base_comparison.png`
 - `07_evaluation/stage_comparison.png`
 - `run_summary.json`
 

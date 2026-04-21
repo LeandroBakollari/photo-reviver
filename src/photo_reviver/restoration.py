@@ -9,6 +9,9 @@ from photo_reviver.io_utils import load_image, save_image, save_json
 from photo_reviver.types import RestorationResult
 
 
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
+
+
 class PassthroughRestorationRunner:
     backend = "passthrough"
 
@@ -170,12 +173,9 @@ class BoptlRestorationRunner:
             ) from error
 
         final_output_dir = output_dir / "final_output"
-        output_files = sorted(path for path in final_output_dir.iterdir() if path.is_file())
+        output_files = self.find_output_files(output_dir)
         if not output_files:
-            raise FileNotFoundError(
-                "BOPTL finished, but no files were found in "
-                f"{final_output_dir}"
-            )
+            raise RuntimeError(self.build_missing_output_message(final_output_dir, log_path, temp_work_dir))
 
         restored_image = load_image(output_files[0])
         output_path = save_image(stage_dir / "restored_model_output.png", restored_image)
@@ -192,6 +192,57 @@ class BoptlRestorationRunner:
         )
         save_json(stage_dir / "restoration.json", result)
         return result
+
+    def find_output_files(self, output_dir: Path) -> list[Path]:
+        final_output_dir = output_dir / "final_output"
+        if final_output_dir.exists():
+            files = sorted(
+                path
+                for path in final_output_dir.iterdir()
+                if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES
+            )
+            if files:
+                return files
+
+        candidate_dirs = [
+            output_dir / "stage_1_restore_output" / "restored_image",
+            output_dir / "stage_3_face_output",
+        ]
+        candidates: list[Path] = []
+        for directory in candidate_dirs:
+            if directory.exists():
+                candidates.extend(
+                    path
+                    for path in directory.rglob("*")
+                    if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES
+                )
+        return sorted(candidates)
+
+    def build_missing_output_message(
+        self,
+        final_output_dir: Path,
+        log_path: Path,
+        temp_work_dir: Path,
+    ) -> str:
+        log_text = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
+        if "not enough memory" in log_text or "DefaultCPUAllocator" in log_text:
+            return (
+                "BOPTL did not create a restored image because the upstream model ran out of CPU memory. "
+                "The input will now be resized before BOPTL, but for this completed run you need to try again. "
+                "You can also choose passthrough mode, use a smaller image, or run BOPTL with a CUDA GPU. "
+                f"Log: {log_path}. Temporary output: {temp_work_dir}"
+            )
+        if "Skip " in log_text and "due to an error" in log_text:
+            return (
+                "BOPTL skipped the input image and produced no restored output. "
+                f"Check the upstream log for the exact error: {log_path}. "
+                f"Temporary output: {temp_work_dir}"
+            )
+        return (
+            "BOPTL finished, but no restored image was found in "
+            f"{final_output_dir}. Check the runtime log: {log_path}. "
+            f"Temporary output: {temp_work_dir}"
+        )
 
 
 def build_restoration_runner(restoration_config: dict):

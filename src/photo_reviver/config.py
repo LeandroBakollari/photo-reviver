@@ -31,7 +31,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "normalize_intensity": False,
         "model_safe_denoise_strength": 0,
         "model_safe_use_clahe": False,
-        "model_safe_resize_longest_side": None,
+        "model_safe_resize_longest_side": 768,
     },
     "restoration": {
         "backend": "passthrough",

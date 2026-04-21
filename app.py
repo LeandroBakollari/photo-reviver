@@ -1,4 +1,4 @@
-from photo_reviver.web_app import main
+from photo_reviver.desktop_app import main
 
 
 if __name__ == "__main__":
