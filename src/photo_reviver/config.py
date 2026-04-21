@@ -61,6 +61,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "attempt_colorization": False,
         "colorization": {
             "enabled": False,
+            "only_if_input_grayscale": True,
             "repo_root": "external/deoldify",
             "weights_name": "ColorizeArtistic_gen",
             "artistic": True,

@@ -1,237 +1,160 @@
 # Photo Reviver
 
-`photo-reviver` is a small Python app for restoring old photos.
+Photo Reviver is a local Python app for restoring old or damaged photos. It provides a Streamlit interface, a command-line entry point, and a repeatable stage-based pipeline for analysis, preprocessing, restoration, final touches, and output review.
 
-It is built around:
+The app supports:
 
-- a simple Streamlit interface
-- Microsoft `Bringing-Old-Photos-Back-to-Life` for the main restoration
+- image upload and preview in Streamlit
+- scratch, contrast, and image-quality analysis
+- preprocessing before restoration
+- a simple passthrough backend for testing the pipeline
+- optional Microsoft `Bringing-Old-Photos-Back-to-Life` restoration
 - optional DeOldify colorization
-- a stage-by-stage view so you can inspect what happened
+- final enhancement and sharpening controls
+- stage-by-stage output files and a run summary
 
-## What This Repo Contains
-
-This repo keeps the app code, config, tests, and UI.
-
-This repo does **not** keep the heavy pretrained models inside Git.
-
-That means on another PC you only need to:
-
-1. copy or clone this repo
-2. install Python packages
-3. download the pretrained model folders into `external/`
-4. run the app
-
-## Folder Layout
-
-Expected structure:
-
-```text
-photo-reviver/
-|-- app.py
-|-- configs/
-|-- external/
-|   |-- bringing-old-photos-back-to-life/
-|   `-- deoldify/
-|-- src/
-|-- tests/
-|-- requirements.txt
-|-- requirements-boptl.txt
-`-- README.md
-```
-
-Important external folders:
-
-- `external/bringing-old-photos-back-to-life`
-- `external/deoldify`
-
-## Move To Another PC
-
-The easiest way is:
-
-1. Put this whole project folder on GitHub or copy it with a zip.
-2. On the new PC, download or clone it.
-3. Recreate the virtual environment.
-4. Install the requirements.
-5. Download the pretrained model repos and weights into `external/`.
-
-You do **not** need to rewrite code or change paths if you keep the same folder names.
+Pretrained model repositories and weights are not stored in this repository. They must be downloaded separately into `external/`.
 
 ## Requirements
 
 - Python 3.11 or newer
-- Windows PowerShell
-- internet access for installing packages and downloading pretrained models
+- Windows PowerShell for the commands below
+- Internet access for installing packages and downloading model assets
 
-## Quick Start
+The basic app only needs the package dependencies in `pyproject.toml` or `requirements.txt`. The Microsoft restoration backend and DeOldify require the heavier dependencies in `requirements-boptl.txt`.
 
-If you only want to open the app and test the basic interface:
+## Installation
+
+From the project root:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e .
-streamlit run .\app.py
 ```
 
-This basic setup is enough for:
+This installs the app, the Streamlit interface, and the simple local pipeline.
 
-- the Streamlit app
-- image upload
-- preprocessing
-- analysis
-- passthrough mode
-
-It is **not** enough for the Microsoft restoration model.
-
-## Full Setup For Another PC
-
-Use these steps if you want the real restoration model.
-
-### 1. Clone or copy the repo
-
-```powershell
-git clone <your-repo-url>
-cd photo-reviver
-```
-
-If you are not using Git, just copy the project folder and open PowerShell in that folder.
-
-### 2. Create and activate a virtual environment
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-```
-
-### 3. Install Python packages
-
-Install the app:
-
-```powershell
-python -m pip install -e .
-```
-
-Install the heavier model dependencies too:
+If you plan to use the Microsoft restoration backend or DeOldify, also install:
 
 ```powershell
 python -m pip install -r requirements-boptl.txt
 ```
 
-### 4. Download the Microsoft restoration repo
+Some packages in the model dependency set, especially Torch and dlib, may need platform-specific wheels depending on the machine and GPU setup.
 
-Download the Microsoft `Bringing-Old-Photos-Back-to-Life` project and place it here:
+## Run the App
 
-```text
-external/bringing-old-photos-back-to-life
-```
-
-After that, this file should exist:
-
-```text
-external/bringing-old-photos-back-to-life/run.py
-```
-
-You also need its pretrained assets. These paths must exist:
-
-```text
-external/bringing-old-photos-back-to-life/Face_Detection/shape_predictor_68_face_landmarks.dat
-external/bringing-old-photos-back-to-life/Face_Enhancement/checkpoints/
-external/bringing-old-photos-back-to-life/Global/checkpoints/
-```
-
-### 5. Optional: Download DeOldify
-
-If you also want colorization, download DeOldify and place it here:
-
-```text
-external/deoldify
-```
-
-This file should exist:
-
-```text
-external/deoldify/deoldify/visualize.py
-```
-
-And this weight file should exist:
-
-```text
-external/deoldify/models/ColorizeArtistic_gen.pth
-```
-
-## Run The App
-
-From the project root:
+Start the Streamlit interface:
 
 ```powershell
 streamlit run .\app.py
 ```
 
-Then in the app:
+In the app:
 
-1. upload a photo
-2. choose the restoration engine in the sidebar
-3. press `Fix Photo`
-4. check the `Analysis` tab
-5. check the `Restoration` tab
-6. use the `Final Touches` tab if needed
+1. Upload a photo.
+2. Choose the restoration engine in the sidebar.
+3. Select `Fix Photo`.
+4. Review the analysis, preprocessing, restoration, and final result tabs.
+5. Use final touches for enhancement, sharpening, or optional colorization.
 
-## Which Backend To Choose
+If the Microsoft model assets are missing, the app will show which required paths were not found. The simple pipeline remains available for testing the interface and output flow.
 
-The app sidebar gives you two main choices:
+## Optional Model Setup
 
-- `Microsoft model (best quality, slower)`
-- `Simple pipeline only (fast, no learned restoration)`
+Photo Reviver looks for external model repositories under `external/`.
 
-Use `Microsoft model` if the Microsoft repo and checkpoints are installed correctly.
+### Microsoft Restoration
 
-If the model files are missing, the app will warn you in the sidebar.
+Download Microsoft's `Bringing-Old-Photos-Back-to-Life` project and place it here:
 
-## Scratch Detection In The App
-
-The app can show two kinds of scratch detection:
-
-- Microsoft pretrained scratch detector
-- local OpenCV fallback detector
-
-If the Microsoft backend is available, the app tries to use the Microsoft detector for the scratch preview in the `Analysis` tab.
-
-If that detector cannot run, the app falls back to the local heuristic.
-
-You can check the `Scratch detector` line in the `Analysis` tab to see which one was used.
-
-## Run From The Command Line
-
-Basic run:
-
-```powershell
-photo-reviver --input ".\samples\old_photo_03.png"
+```text
+external/bringing-old-photos-back-to-life
 ```
 
-Run with the Microsoft backend config:
+The following paths must exist:
 
-```powershell
-photo-reviver --input ".\samples\old_photo_03.png" --config ".\configs\pipeline.boptl.json"
+```text
+external/bringing-old-photos-back-to-life/run.py
+external/bringing-old-photos-back-to-life/Face_Detection/shape_predictor_68_face_landmarks.dat
+external/bringing-old-photos-back-to-life/Face_Enhancement/checkpoints/
+external/bringing-old-photos-back-to-life/Global/checkpoints/
 ```
 
-Run with a reference image:
+Use this config when running from the command line with the Microsoft backend:
+
+```text
+configs/pipeline.boptl.json
+```
+
+### DeOldify Colorization
+
+DeOldify is optional and is used only for colorization.
+
+Place DeOldify here:
+
+```text
+external/deoldify
+```
+
+The following paths must exist:
+
+```text
+external/deoldify/deoldify/visualize.py
+external/deoldify/models/ColorizeArtistic_gen.pth
+```
+
+Use this config when running from the command line with Microsoft restoration and DeOldify enabled:
+
+```text
+configs/pipeline.boptl.deoldify.json
+```
+
+By default, colorization runs only when the original input image is grayscale.
+
+## Command Line Usage
+
+Run the basic pipeline:
 
 ```powershell
-photo-reviver --input "C:\full\path\to\damaged_photo.jpg" --reference "C:\full\path\to\clean_reference.jpg"
+photo-reviver --input "C:\path\to\old_photo.jpg"
 ```
+
+Run with the Microsoft backend:
+
+```powershell
+photo-reviver --input "C:\path\to\old_photo.jpg" --config ".\configs\pipeline.boptl.json"
+```
+
+Run with Microsoft restoration and DeOldify colorization:
+
+```powershell
+photo-reviver --input "C:\path\to\old_photo.jpg" --config ".\configs\pipeline.boptl.deoldify.json"
+```
+
+Run with a reference image for comparison metrics:
+
+```powershell
+photo-reviver --input "C:\path\to\old_photo.jpg" --reference "C:\path\to\reference.jpg"
+```
+
+Useful CLI options:
+
+- `--config`: load a JSON config file
+- `--output-root`: choose where run folders are written
+- `--backend`: override the configured backend with `passthrough`, `boptl`, or `external_command`
 
 ## Output Files
 
-Each run creates a folder inside:
+Each run creates a timestamped folder under:
 
 ```text
 artifacts/runs/
 ```
 
-Example:
+Example structure:
 
 ```text
 artifacts/runs/20260420_000000_old-photo/
@@ -245,7 +168,7 @@ artifacts/runs/20260420_000000_old-photo/
 `-- run_summary.json
 ```
 
-Useful files:
+Common files:
 
 - `02_analysis/scratch_mask.png`
 - `02_analysis/scratch_overlay.png`
@@ -253,10 +176,21 @@ Useful files:
 - `06_postprocess/final_restored.png`
 - `06_postprocess/colorized_output.png`
 - `07_evaluation/stage_comparison.png`
+- `run_summary.json`
+
+## Configuration
+
+Pipeline behavior is controlled with JSON config files in `configs/`.
+
+- `pipeline.example.json`: basic example using the local passthrough backend
+- `pipeline.boptl.json`: Microsoft restoration backend
+- `pipeline.boptl.deoldify.json`: Microsoft restoration with DeOldify colorization enabled
+
+Config files can adjust output paths, analysis thresholds, preprocessing options, restoration backend settings, and postprocessing behavior.
 
 ## Testing
 
-Run tests with:
+Run the test suite with:
 
 ```powershell
 python -m unittest discover -s tests
@@ -264,42 +198,26 @@ python -m unittest discover -s tests
 
 ## Troubleshooting
 
-### The Microsoft model does not appear in the app
+### The Microsoft model is unavailable
 
-Check that these exist:
+Check that the Microsoft repository, face landmark file, and checkpoint folders are present under `external/bringing-old-photos-back-to-life`. Also confirm that the model dependencies from `requirements-boptl.txt` are installed in the active virtual environment.
 
-- `external/bringing-old-photos-back-to-life/run.py`
-- `external/bringing-old-photos-back-to-life/Face_Detection/shape_predictor_68_face_landmarks.dat`
-- `external/bringing-old-photos-back-to-life/Face_Enhancement/checkpoints/`
-- `external/bringing-old-photos-back-to-life/Global/checkpoints/`
+### Colorization is disabled
 
-### Colorization button is disabled
+Check that DeOldify is present under `external/deoldify` and that `external/deoldify/models/ColorizeArtistic_gen.pth` exists. The default config colorizes only grayscale source images.
 
-Check that these exist:
+### Restoration fails from the command line
 
-- `external/deoldify/deoldify/visualize.py`
-- `external/deoldify/models/ColorizeArtistic_gen.pth`
-
-### The app opens but restoration does not run
-
-Make sure you installed both:
+Start with the passthrough backend to confirm the pipeline works:
 
 ```powershell
-python -m pip install -e .
-python -m pip install -r requirements-boptl.txt
+photo-reviver --input "C:\path\to\old_photo.jpg" --backend passthrough
 ```
 
-### I only want to move the code to another PC
-
-You can move this repo without the `external/` model folders.
-
-Later, on the new PC, just install requirements and download the pretrained model folders into:
-
-- `external/bringing-old-photos-back-to-life`
-- `external/deoldify`
+Then rerun with the model config after the external model files and dependencies are in place.
 
 ## Notes
 
-- final touches happen after the restoration output
-- DeOldify is optional
-- the Microsoft model is slower but gives the best restoration results in this project
+- External model repositories and pretrained weights are intentionally excluded from Git.
+- Generated runs are written to `artifacts/runs/` and are not intended to be committed.
+- Review the licenses and usage terms of the external Microsoft and DeOldify projects before distributing model assets or restored outputs.

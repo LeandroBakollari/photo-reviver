@@ -1,0 +1,23 @@
+{
+  "restoration": {
+    "backend": "boptl",
+    "repo_root": "external/bringing-old-photos-back-to-life",
+    "python_executable": "python",
+    "gpu": "-1",
+    "checkpoint_name": "Setting_9_epoch_100"
+  },
+  "postprocess": {
+    "attempt_colorization": true,
+    "colorization": {
+      "enabled": true,
+      "only_if_input_grayscale": true,
+      "repo_root": "external/deoldify",
+      "weights_name": "ColorizeArtistic_gen",
+      "artistic": true,
+      "render_factor": 25,
+      "post_process": true,
+      "watermarked": false,
+      "device": "cpu"
+    }
+  }
+}

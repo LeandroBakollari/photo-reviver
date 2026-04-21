@@ -58,6 +58,7 @@ def postprocess_image(
     image: np.ndarray,
     postprocess_config: dict,
     stage_dir: Path,
+    original_is_grayscale: bool = False,
 ) -> PostprocessResult:
     processed = image.copy()
     applied_steps: list[str] = []
@@ -105,7 +106,17 @@ def postprocess_image(
         colorization_config.get("enabled", False)
         or postprocess_config.get("attempt_colorization", False)
     )
-    if colorization_enabled:
+    only_if_input_grayscale = bool(
+        colorization_config.get("only_if_input_grayscale", True)
+    )
+    if colorization_enabled and only_if_input_grayscale and not original_is_grayscale:
+        skipped_steps.append(
+            "Colorization was skipped because the original input image was not grayscale."
+        )
+        notes.append(
+            "DeOldify was enabled, but it only runs when the original input is grayscale."
+        )
+    elif colorization_enabled:
         colorization_result = apply_deoldify_colorization(
             processed,
             colorization_config,

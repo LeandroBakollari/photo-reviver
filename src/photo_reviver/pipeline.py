@@ -70,6 +70,7 @@ def run_pipeline(
         image=restored_image,
         postprocess_config=config["postprocess"],
         stage_dir=run_paths.postprocess_dir,
+        original_is_grayscale=validation.is_grayscale,
     )
 
     final_image = load_image(postprocess_result.output_path)
@@ -105,6 +106,7 @@ def rerun_final_touches(summary: dict, postprocess_config: dict) -> dict:
         image=restored_image,
         postprocess_config=postprocess_config,
         stage_dir=postprocess_dir,
+        original_is_grayscale=summary["input_validation"].is_grayscale,
     )
 
     original_image = load_image(summary["input_validation"].copied_path)
