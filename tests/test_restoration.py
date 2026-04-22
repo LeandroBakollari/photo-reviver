@@ -4,7 +4,11 @@ from pathlib import Path
 from subprocess import CalledProcessError
 from unittest.mock import patch
 
-from photo_reviver.restoration import BoptlRestorationRunner, build_boptl_command
+from photo_reviver.restoration import (
+    BoptlRestorationRunner,
+    build_boptl_command,
+    build_subprocess_env,
+)
 
 
 class RestorationTests(unittest.TestCase):
@@ -66,6 +70,12 @@ class RestorationTests(unittest.TestCase):
             self.assertNotIn(" ", str(input_dir))
             self.assertNotIn(" ", str(output_dir))
             self.assertIn("boptl.log", str(ctx.exception))
+
+    def test_boptl_env_prefers_configured_python_folder(self) -> None:
+        env = build_subprocess_env(str(Path("C:/example/.venv/Scripts/python.exe")))
+
+        self.assertIsNotNone(env)
+        self.assertTrue(env["PATH"].startswith("C:\\example\\.venv\\Scripts"))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -10,6 +11,16 @@ from photo_reviver.types import RestorationResult
 
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
+
+
+def build_subprocess_env(python_executable: str) -> dict[str, str] | None:
+    executable_path = Path(python_executable)
+    if not executable_path.parent or str(executable_path.parent) == ".":
+        return None
+
+    env = os.environ.copy()
+    env["PATH"] = f"{executable_path.parent}{os.pathsep}{env.get('PATH', '')}"
+    return env
 
 
 class PassthroughRestorationRunner:
@@ -157,6 +168,7 @@ class BoptlRestorationRunner:
                 capture_output=True,
                 text=True,
                 cwd=self.repo_root,
+                env=build_subprocess_env(self.python_executable),
             )
             log_text = completed.stdout
             if completed.stderr:
@@ -167,10 +179,7 @@ class BoptlRestorationRunner:
             if error.stderr:
                 log_text = f"{log_text}\n\n[stderr]\n{error.stderr}".strip()
             log_path.write_text(log_text, encoding="utf-8")
-            raise RuntimeError(
-                "BOPTL restoration failed. Check the runtime log for details: "
-                f"{log_path}"
-            ) from error
+            raise RuntimeError(self.build_failed_process_message(log_path)) from error
 
         final_output_dir = output_dir / "final_output"
         output_files = self.find_output_files(output_dir)
@@ -192,6 +201,17 @@ class BoptlRestorationRunner:
         )
         save_json(stage_dir / "restoration.json", result)
         return result
+
+    def build_failed_process_message(self, log_path: Path) -> str:
+        log_text = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
+        if "ModuleNotFoundError: No module named 'torch'" in log_text:
+            return (
+                "BOPTL failed because the Python interpreter used by the Microsoft repo could not import torch. "
+                f"The desktop app now launches BOPTL with this interpreter: {self.python_executable}. "
+                "If this still fails, install the BOPTL dependencies into that environment. "
+                f"Log: {log_path}"
+            )
+        return "BOPTL restoration failed. Check the runtime log for details: " f"{log_path}"
 
     def find_output_files(self, output_dir: Path) -> list[Path]:
         final_output_dir = output_dir / "final_output"

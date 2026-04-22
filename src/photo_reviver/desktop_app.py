@@ -5,6 +5,7 @@ import copy
 import json
 import queue
 import shutil
+import sys
 import threading
 import tkinter as tk
 from pathlib import Path
@@ -588,6 +589,7 @@ class PhotoReviverDesktopApp:
 
         backend = self.backend_var.get()
         run_config = apply_cli_overrides(load_config(), backend=backend)
+        run_config["restoration"]["python_executable"] = sys.executable
         run_config["restoration"]["gpu"] = self.gpu_var.get().strip() or "-1"
         run_config["preprocess"]["model_safe_resize_longest_side"] = self.resolve_max_side()
 
